@@ -116,7 +116,7 @@ impl Task<()> for Arc<AsyncTask> {
         let mut future_slot = self.future.lock().expect("failed to acquire mutex");
         if let Some(mut future) = future_slot.take() {
             let waker = waker_ref(&self);
-            let context = &mut Context::from_waker(&*waker);
+            let context = &mut Context::from_waker(&waker);
             if future.as_mut().poll(context).is_pending() {
                 *future_slot = Some(future);
             }
@@ -131,15 +131,6 @@ impl Task<()> for Arc<AsyncTask> {
         false
     }
 }
-
-// assert that Send is implemented
-trait ThreadSafe: Send {}
-
-impl<R: Send> ThreadSafe for dyn Task<R> {}
-
-impl<R: Send> ThreadSafe for JoinHandle<R> {}
-
-impl ThreadSafe for ThreadPool {}
 
 /// Self growing / shrinking `ThreadPool` implementation based on crossbeam's
 /// multi-producer multi-consumer channels that enables awaiting the result of a
@@ -1209,8 +1200,7 @@ impl WorkerCountData {
         WorkerCountData::split(curr_val)
     }
 
-    // keep for testing and completion's sake
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn increment_both(&self) -> (usize, usize) {
         let old_val = self
             .worker_count
@@ -1251,8 +1241,7 @@ impl WorkerCountData {
         }
     }
 
-    // keep for testing and completion's sake
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn increment_worker_total(&self) -> usize {
         let old_val = self
             .worker_count
@@ -1260,17 +1249,7 @@ impl WorkerCountData {
         WorkerCountData::get_total_count(old_val)
     }
 
-    // keep for testing and completion's sake
-    #[allow(dead_code)]
-    fn increment_worker_total_ret_both(&self) -> (usize, usize) {
-        let old_val = self
-            .worker_count
-            .fetch_add(INCREMENT_TOTAL, Ordering::Relaxed);
-        WorkerCountData::split(old_val)
-    }
-
-    // keep for testing and completion's sake
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn decrement_worker_total(&self) -> usize {
         let old_val = self
             .worker_count
@@ -1278,17 +1257,7 @@ impl WorkerCountData {
         WorkerCountData::get_total_count(old_val)
     }
 
-    // keep for testing and completion's sake
-    #[allow(dead_code)]
-    fn decrement_worker_total_ret_both(&self) -> (usize, usize) {
-        let old_val = self
-            .worker_count
-            .fetch_sub(INCREMENT_TOTAL, Ordering::Relaxed);
-        WorkerCountData::split(old_val)
-    }
-
-    // keep for testing and completion's sake
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn increment_worker_idle(&self) -> usize {
         let old_val = self
             .worker_count
@@ -1308,15 +1277,6 @@ impl WorkerCountData {
             .worker_count
             .fetch_sub(INCREMENT_IDLE, Ordering::Relaxed);
         WorkerCountData::get_idle_count(old_val)
-    }
-
-    // keep for testing and completion's sake
-    #[allow(dead_code)]
-    fn decrement_worker_idle_ret_both(&self) -> (usize, usize) {
-        let old_val = self
-            .worker_count
-            .fetch_sub(INCREMENT_IDLE, Ordering::Relaxed);
-        WorkerCountData::split(old_val)
     }
 
     #[inline]
